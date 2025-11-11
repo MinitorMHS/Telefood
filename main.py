@@ -2,7 +2,6 @@ from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import os
 import logging
-from aiohttp import web
 import asyncio
 
 # Setup logging
@@ -14,12 +13,15 @@ logging.basicConfig(
 # Get credentials from environment variables
 API_ID = os.environ.get('API_ID')
 API_HASH = os.environ.get('API_HASH')
-SESSION_STRING = os.environ.get('SESSION')  # Your session string
-PORT = int(os.environ.get('PORT', 8000))
+SESSION_STRING = os.environ.get('SESSION')
 
 # Get target chat IDs from environment variable
-# Can be a single ID or multiple IDs separated by commas
 CHAT_IDS_STR = os.environ.get('CHAT_IDS')
+
+if not CHAT_IDS_STR:
+    logging.error("CHAT_IDS environment variable is not set!")
+    raise ValueError("CHAT_IDS environment variable is required. Example: CHAT_IDS=-1001507520813")
+
 TARGET_CHAT_IDS = [int(chat_id.strip()) for chat_id in CHAT_IDS_STR.split(',')]
 
 logging.info(f"Monitoring {len(TARGET_CHAT_IDS)} chat(s): {TARGET_CHAT_IDS}")
@@ -134,29 +136,9 @@ async def handler(event):
     except Exception as e:
         logging.error(f"Error handling message: {e}")
 
-# Health check web server
-async def health_check(request):
-    status = "active" if is_monitoring else "paused"
-    return web.Response(text=f'Bot is running! Status: {status}')
-
-async def start_web_server():
-    """Start a simple web server for health checks"""
-    app = web.Application()
-    app.router.add_get('/', health_check)
-    app.router.add_get('/health', health_check)
-    
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', PORT)
-    await site.start()
-    logging.info(f"Web server started on port {PORT}")
-
 async def main():
     """Start the bot"""
-    # Start web server for Koyeb health checks
-    await start_web_server()
-    
-    # Start Telegram client (no phone needed with session string)
+    # Start Telegram client
     await client.start()
     logging.info("User bot started (monitoring paused - send !start to begin)")
     
